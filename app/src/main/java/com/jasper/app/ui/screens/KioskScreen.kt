@@ -160,13 +160,13 @@ fun KioskScreen(onNavigateBack: () -> Unit) {
                     )
                     FaceOverlay(results = if (kioskResult == null) state.results else emptyList(), modifier = Modifier.fillMaxSize())
 
-                    // FPS
+                    // FPS (displayed at bottom-right to avoid overlap with controls)
                     if (state.fps > 0f) {
                         Text(
                             "${"%.1f".format(state.fps)} fps",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White,
-                            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp)
                         )
                     }
                 }
