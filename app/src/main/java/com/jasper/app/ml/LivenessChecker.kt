@@ -13,15 +13,19 @@ enum class LivenessStatus { COLLECTING, LIVE, STATIC }
  *
  * Overhead: ~0.1 ms per frame (5 variance calculations on 5 floats each).
  * No allocations inside the hot path after warm-up.
+ *
+ * Memory: Stale buffers (not updated for 3+ seconds) are evicted to prevent unbounded growth.
  */
 object LivenessChecker {
 
     private const val BUFFER_SIZE = 5
     private const val MIN_VARIANCE = 0.0003f
+    private const val BUFFER_EVICTION_MS = 3000L
 
     // Keyed by a coarse hash of the face's location so multiple simultaneous faces
     // each maintain their own independent buffer.
     private val buffers = HashMap<Int, ArrayDeque<Pair<Float, Float>>>()
+    private val bufferTimestamps = HashMap<Int, Long>()
 
     /**
      * Call once per detected face per frame.
@@ -31,8 +35,20 @@ object LivenessChecker {
      *         [LivenessStatus.STATIC] if face appears frozen (spoof candidate).
      */
     fun check(box: RectF): LivenessStatus {
+        val now = System.currentTimeMillis()
+
+        // Evict stale buffers to prevent unbounded HashMap growth
+        buffers.keys.removeAll { key ->
+            (now - (bufferTimestamps[key] ?: 0L)) > BUFFER_EVICTION_MS
+        }
+        bufferTimestamps.keys.removeAll { key ->
+            !buffers.containsKey(key)
+        }
+
         val key  = boxKey(box)
         val buf  = buffers.getOrPut(key) { ArrayDeque(BUFFER_SIZE + 1) }
+        bufferTimestamps[key] = now
+
         val cx   = (box.left + box.right)  / 2f
         val cy   = (box.top  + box.bottom) / 2f
         buf.addLast(Pair(cx, cy))
@@ -44,18 +60,21 @@ object LivenessChecker {
     }
 
     /** Call when the screen exits or a recognition session ends to avoid stale state. */
-    fun reset() = buffers.clear()
+    fun reset() {
+        buffers.clear()
+        bufferTimestamps.clear()
+    }
 
     // ── Internals ────────────────────────────────────────────────────────────
 
     /**
-     * Coarse grid hash: bucket the face centre to a 10×10 grid so that small
+     * Grid hash: bucket the face centre to a 20×20 grid so that small
      * natural movements do NOT create a new buffer entry, but a completely
-     * different face in frame DOES get a separate buffer.
+     * different face in frame DOES get a separate buffer. Finer grid reduces collisions.
      */
     private fun boxKey(b: RectF): Int {
-        val gridX = ((b.left + b.right)  / 2f * 10f).toInt().coerceIn(0, 9)
-        val gridY = ((b.top  + b.bottom) / 2f * 10f).toInt().coerceIn(0, 9)
+        val gridX = ((b.left + b.right)  / 2f * 20f).toInt().coerceIn(0, 19)
+        val gridY = ((b.top  + b.bottom) / 2f * 20f).toInt().coerceIn(0, 19)
         return gridX * 31 + gridY
     }
 

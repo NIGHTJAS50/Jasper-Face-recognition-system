@@ -47,12 +47,16 @@ class FaceEmbedder(context: Context) {
 
     init {
         val assetFd = context.assets.openFd(MODEL_ASSET)
-        val modelBuffer = assetFd.createInputStream().channel.use { channel ->
-            channel.map(FileChannel.MapMode.READ_ONLY, assetFd.startOffset, assetFd.declaredLength)
+        try {
+            val modelBuffer = assetFd.createInputStream().channel.use { channel ->
+                channel.map(FileChannel.MapMode.READ_ONLY, assetFd.startOffset, assetFd.declaredLength)
+            }
+            interpreter = Interpreter(modelBuffer, Interpreter.Options().apply {
+                numThreads = 2
+            })
+        } finally {
+            assetFd.close()
         }
-        interpreter = Interpreter(modelBuffer, Interpreter.Options().apply {
-            numThreads = 2
-        })
     }
 
     /**

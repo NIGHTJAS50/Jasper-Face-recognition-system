@@ -66,6 +66,14 @@ fun CameraPreview(
         onDispose {
             view.keepScreenOn = false
             analysisExecutor.shutdown()
+            try {
+                // Wait up to 2 seconds for pending tasks to complete gracefully
+                if (!analysisExecutor.awaitTermination(2, java.util.concurrent.TimeUnit.SECONDS)) {
+                    analysisExecutor.shutdownNow()
+                }
+            } catch (e: InterruptedException) {
+                analysisExecutor.shutdownNow()
+            }
         }
     }
 
@@ -83,7 +91,12 @@ fun CameraPreview(
                 // Stable wrapper — reads currentAnalyzer.value at analysis time, not at bind time.
                 // This means we never need to rebind just because the lambda reference changed.
                 val analyzerProxy = ImageAnalysis.Analyzer { proxy ->
-                    currentAnalyzer.value?.analyze(proxy) ?: proxy.close()
+                    try {
+                        currentAnalyzer.value?.analyze(proxy) ?: proxy.close()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Analyzer threw exception", e)
+                        proxy.close()
+                    }
                 }
 
                 val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)

@@ -57,8 +57,8 @@ object FaceQualityChecker {
                 count++
             }
         }
-        val mean        = lapSum / count
-        val blurVariance = lapSumSq / count - mean * mean
+        val mean        = if (count > 0) lapSum / count else 0.0
+        val blurVariance = if (count > 0) lapSumSq / count - mean * mean else 0.0
 
         val issue = when {
             meanBrightness < DARK_THRESHOLD    -> QualityIssue.TOO_DARK

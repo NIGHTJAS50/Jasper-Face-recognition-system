@@ -91,7 +91,12 @@ fun KioskScreen(onNavigateBack: () -> Unit) {
     DisposableEffect(Unit) { onDispose { toneGen?.release() } }
 
     // TextToSpeech for access announcements
-    val tts = remember { TextToSpeech(context, null) }
+    var ttsReady by remember { mutableStateOf(false) }
+    val tts = remember {
+        TextToSpeech(context) { status ->
+            ttsReady = (status == TextToSpeech.SUCCESS)
+        }
+    }
     DisposableEffect(Unit) { onDispose { tts.shutdown() } }
 
     var hasCameraPermission by remember {
@@ -116,7 +121,9 @@ fun KioskScreen(onNavigateBack: () -> Unit) {
         }
         if (knownFace != null && kioskResult?.name != knownFace.label) {
             kioskResult = KioskResult(authorized = true, name = knownFace.label)
-            tts.speak("Access authorized. Welcome, ${knownFace.label}", TextToSpeech.QUEUE_FLUSH, null, "kiosk_welcome")
+            if (ttsReady) {
+                tts.speak("Access authorized. Welcome, ${knownFace.label}", TextToSpeech.QUEUE_FLUSH, null, "kiosk_welcome")
+            }
             delay(AUTHORIZED_DISPLAY_MS)
             kioskResult = null
         } else if (state.results.isNotEmpty() && state.results.all { !it.isKnown }

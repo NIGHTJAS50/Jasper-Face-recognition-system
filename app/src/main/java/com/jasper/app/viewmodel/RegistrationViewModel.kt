@@ -270,7 +270,9 @@ class RegistrationViewModel(
             postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
             if (isFrontCamera) preScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f)
         }
-        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        val result = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        bitmap.recycle()
+        return result
     }
 
     override fun onCleared() {

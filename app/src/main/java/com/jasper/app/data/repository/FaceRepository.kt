@@ -253,13 +253,16 @@ class FaceRepository(
             if (result.isKnown) {
                 withContext(Dispatchers.IO) {
                     try {
-                        db.recognitionEventDao().insertEvent(
-                            RecognitionEventEntity(
-                                userId = users.first { it.name == result.label }.id,
-                                userName = result.label,
-                                confidencePercent = result.confidencePercent
+                        val user = users.firstOrNull { it.name == result.label }
+                        if (user != null) {
+                            db.recognitionEventDao().insertEvent(
+                                RecognitionEventEntity(
+                                    userId = user.id,
+                                    userName = result.label,
+                                    confidencePercent = result.confidencePercent
+                                )
                             )
-                        )
+                        }
                     } catch (e: Exception) {
                         Log.w(TAG, "Failed to log recognition event", e)
                     }
