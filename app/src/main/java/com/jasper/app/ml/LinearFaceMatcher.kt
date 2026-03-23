@@ -49,10 +49,13 @@ class LinearFaceMatcher : EmbeddingMatcher {
 
         // Phase 2: individual embeddings for near-threshold candidates
         var bestSim = bestTemplateSim
-        var bestMatchUser = bestUser
+        var bestMatchUser = bestUser ?: return unknown(boundingBox, bestTemplateSim)
+
         for (user in users) {
             if (user.templateEmbedding.size != queryEmbedding.size) continue
-            if (dotProduct(queryEmbedding, user.templateEmbedding) < threshold - NEAR_MARGIN) continue
+            val templateSim = dotProduct(queryEmbedding, user.templateEmbedding)
+            if (templateSim < threshold - NEAR_MARGIN) continue
+
             for (emb in user.embeddings) {
                 if (emb.size != queryEmbedding.size) continue
                 val sim = dotProduct(queryEmbedding, emb)
@@ -65,7 +68,7 @@ class LinearFaceMatcher : EmbeddingMatcher {
 
         val isKnown = bestSim >= threshold
         return RecognitionResult(
-            label = if (isKnown) bestMatchUser!!.name else "Unknown",
+            label = if (isKnown) bestMatchUser.name else "Unknown",
             similarityScore = bestSim,
             confidencePercent = ((bestSim + 1f) / 2f) * 100f,
             boundingBox = boundingBox,

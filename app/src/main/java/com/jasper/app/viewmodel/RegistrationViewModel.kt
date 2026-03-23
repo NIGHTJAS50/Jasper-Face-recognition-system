@@ -185,7 +185,9 @@ class RegistrationViewModel(
 
         viewModelScope.launch(Dispatchers.Default) {
             try {
-                val embedResults = repository.detectAlignEmbed(bitmap)
+                // Ensure bitmap is still valid; race condition safety
+                val validBitmap = bitmap ?: run { isCapturing.set(false); return@launch }
+                val embedResults = repository.detectAlignEmbed(validBitmap)
                 if (embedResults.isEmpty()) { isCapturing.set(false); return@launch }
 
                 val (embedding, quality) = embedResults.first()

@@ -2,6 +2,7 @@ package com.jasper.app.viewmodel
 
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.util.Log
 import androidx.camera.core.ImageProxy
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.ConcurrentHashMap
 
 class AttendanceViewModel(
     private val repository: FaceRepository,
@@ -51,8 +53,8 @@ class AttendanceViewModel(
 
     @Volatile private var registeredUsers: List<RegisteredUser> = emptyList()
 
-    /** Per-user timestamp of last DB write — enforces COOLDOWN_MS between writes. */
-    private val lastLoggedAt = HashMap<Int, Long>()
+    /** Per-user timestamp of last DB write — enforces COOLDOWN_MS between writes. Thread-safe via ConcurrentHashMap. */
+    private val lastLoggedAt = ConcurrentHashMap<Int, Long>()
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -160,7 +162,8 @@ class AttendanceViewModel(
                     _uiState.value = state.copy(fps = fps)
                 }
             } catch (e: Exception) {
-                // Don't crash the session on a single frame error
+                // Log frame processing errors but don't crash the session
+                Log.w("AttendanceViewModel", "Frame processing error: ${e.message}", e)
             } finally {
                 imageProxy.close()
                 isProcessingFrame.set(false)

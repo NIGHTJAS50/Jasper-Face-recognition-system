@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class RecognitionViewModel(
     private val repository: FaceRepository,
@@ -56,7 +57,7 @@ class RecognitionViewModel(
 
     private val isProcessingFrame        = AtomicBoolean(false)
     private val frameTimestamps          = ArrayDeque<Long>(FPS_WINDOW + 1)
-    private var consecutiveUnknownFrames = 0
+    private val consecutiveUnknownFrames = AtomicInteger(0)
 
     @Volatile var isFrontCamera: Boolean = true
     @Volatile private var registeredUsers = emptyList<com.jasper.app.data.repository.model.RegisteredUser>()
@@ -114,12 +115,12 @@ class RecognitionViewModel(
                 // ── Unknown-person alert ──────────────────────────────────────
                 val hasKnown = displayResults.any { it.isKnown }
                 if (!hasKnown && displayResults.isNotEmpty()) {
-                    consecutiveUnknownFrames++
-                    if (consecutiveUnknownFrames == UNKNOWN_ALERT_FRAMES) {
+                    val frames = consecutiveUnknownFrames.incrementAndGet()
+                    if (frames == UNKNOWN_ALERT_FRAMES) {
                         _unknownAlert.tryEmit(Unit)
                     }
                 } else {
-                    consecutiveUnknownFrames = 0
+                    consecutiveUnknownFrames.set(0)
                 }
 
                 _uiState.value = RecognitionUiState.Scanning(results = displayResults, fps = fps)
